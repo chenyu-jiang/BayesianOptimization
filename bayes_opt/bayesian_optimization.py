@@ -212,6 +212,8 @@ class BayesianOptimization(Observable):
                  kappa_decay=1,
                  kappa_decay_delay=0,
                  xi=0.0,
+                 early_stopping_patience=-1,
+                 early_stopping_start=50,
                  **gp_params):
         """
         Probes the target space to find the parameters that yield the maximum
@@ -260,21 +262,46 @@ class BayesianOptimization(Observable):
                                kappa_decay=kappa_decay,
                                kappa_decay_delay=kappa_decay_delay)
         iteration = 0
+        patience_accum = 0
+        prev_max = -1
+        self.should_stop = False
         while not self._queue.empty or iteration < n_iter:
             try:
                 x_probe = next(self._queue)
             except StopIteration:
                 util.update_params()
-                x_probe = self.suggest(util)
+                try:
+                    x_probe = self.suggest(util)
+                except ValueError as e:
+                    if(str(e) == "array must not contain infs or NaNs"):
+                        # encountered constant function
+                        break
                 iteration += 1
+                
 
             self.probe(x_probe, lazy=False)
+            if iteration >= early_stopping_start and early_stopping_patience > 0 and not self.should_stop:
+                if(prev_max == -1):
+                    prev_max = self.max["target"]
+                else:
+                    if self.max["target"] <= (prev_max + 1e-6):
+                        patience_accum += 1
+                        print("Incremented patience_accum.")
+                        if(patience_accum > early_stopping_patience):
+                            break
+                    else:
+                        print("Cleared patience_accum.")
+                        patience_accum = 0
+                        prev_max = self.max["target"]
 
             if self._bounds_transformer:
                 self.set_bounds(
                     self._bounds_transformer.transform(self._space))
 
         self.dispatch(Events.OPTIMIZATION_END)
+
+    def stop(self):
+        self.should_stop = True
 
     def set_bounds(self, new_bounds):
         """
