@@ -265,7 +265,7 @@ class BayesianOptimization(Observable):
         patience_accum = 0
         prev_max = -1
         self.should_stop = False
-        while not self._queue.empty or iteration < n_iter:
+        while (not self._queue.empty or iteration < n_iter) and not self.should_stop:
             try:
                 x_probe = next(self._queue)
             except StopIteration:
@@ -277,7 +277,6 @@ class BayesianOptimization(Observable):
                         # encountered constant function
                         break
                 iteration += 1
-                
 
             self.probe(x_probe, lazy=False)
             if iteration >= early_stopping_start and early_stopping_patience > 0 and not self.should_stop:
