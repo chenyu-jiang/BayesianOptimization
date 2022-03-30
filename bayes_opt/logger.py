@@ -99,7 +99,7 @@ class ScreenLogger(_Tracker):
             line = "=" * self._header_length + "\n"
 
         if self._verbose:
-            print(line, end="")
+            print(line, end="", flush=True)
         self._update_tracker(event, instance)
 
 
